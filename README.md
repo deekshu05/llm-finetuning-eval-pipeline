@@ -74,7 +74,7 @@ Fine-tuning an LLM is only half the job — knowing whether the fine-tuned model
 ### Installation
 
 ```bash
-git clone https://github.com/<your-username>/llm-finetuning-eval-pipeline.git
+git clone https://github.com/deekshu05/llm-finetuning-eval-pipeline.git
 cd llm-finetuning-eval-pipeline
 pip install -r requirements.txt
 ```
@@ -116,6 +116,24 @@ print(result)
 docker build -t llm-finetune-eval .
 docker run -v $(pwd)/data.jsonl:/app/data.jsonl llm-finetune-eval --dataset /app/data.jsonl --dry-run
 ```
+
+## Sample run
+
+Real output from an 8-example trivia dataset, using the mock training backend and a generator that gets one held-out answer exactly right and one partially right, to show the two metrics actually discriminate:
+
+```python
+>>> config = FineTuneConfig(epochs=2, val_ratio=0.25)
+>>> result = run_fine_tuning_job(config, examples, backend=MockTrainingBackend())
+>>> result.num_train_examples, result.num_val_examples, result.epochs, result.final_train_loss
+(6, 2, 2, 0.42)
+
+>>> _, val_examples = split_dataset(examples, val_ratio=0.25)
+>>> eval_result = evaluate(val_examples, demo_generator)
+>>> eval_result.num_examples, eval_result.exact_match_rate, eval_result.avg_token_overlap_f1
+(2, 0.5, 0.75)
+```
+
+One held-out example ("chemical symbol for gold" → "Au") is an exact match; the other ("boiling point of water" → generator answered "100 degrees Celsius" against a reference of "100") is a partial token overlap, not an exact match — which is exactly why `exact_match_rate` (0.5) and `avg_token_overlap_f1` (0.75) diverge here. That divergence is the metrics module doing its job, not a fine-tuned model's real accuracy — swap `demo_generator` for a real model's `.generate()` call to evaluate an actual fine-tuned checkpoint.
 
 ## Impact
 
